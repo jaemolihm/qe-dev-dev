@@ -48,14 +48,14 @@
   !! Total number of irreducible q-points in the list
   INTEGER, INTENT(in) :: iq
   !! Current q-point in the star of iq_irr q-point
-  INTEGER, INTENT(in) :: gmapsym(ngm, 48)
-  !! Correspondence G-->S(G)
+  INTEGER, INTENT(in) :: gmapsym(ngm)
+  !! Correspondence G-->S(G) for isym
   INTEGER, INTENT(in) :: isym
   !! The symmetry which generates the current q in the star
   REAL(KIND = DP), INTENT(in) :: xq0(3)
   !! The first q-point in the star (cartesian coords.)
-  COMPLEX(KIND = DP), INTENT(in) :: eigv(ngm, 48)
-  !! e^{iGv} for 1...nsym (v the fractional translation)
+  COMPLEX(KIND = DP), INTENT(in) :: eigv(ngm)
+  !! e^{iGv} for isym (v the fractional translation)
   LOGICAL, INTENT(in) :: timerev
   !!  true if we are using time reversal
   !

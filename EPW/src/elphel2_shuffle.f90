@@ -104,16 +104,16 @@
   !! Number of perturbations for this irr representation
   INTEGER, INTENT(in) :: imode0
   !! Current mode number
-  INTEGER, INTENT(in) :: gmapsym(ngm, 48)
-  !! Correspondence  G->S(G)
+  INTEGER, INTENT(in) :: gmapsym(ngm)
+  !! Correspondence  G->S(G) for isym
   INTEGER, INTENT(in) :: isym
   !! The symmetry which generates the current q in the star
   REAL(KIND = DP), INTENT(in) :: xq0(3)
   !! The first q-point in the star (cartesian coords.)
   COMPLEX(KIND = DP), INTENT(in) :: dvscfins(dffts%nnr, nspin_mag, npe)
   !! Delta scf potential
-  COMPLEX(KIND = DP), INTENT(in) :: eigv (ngm, 48)
-  !! $e^{iGv}$ for 1...nsym (v the fractional translation)
+  COMPLEX(KIND = DP), INTENT(in) :: eigv (ngm)
+  !! $e^{iGv}$ for isym (v the fractional translation)
   LOGICAL, INTENT(in) :: timerev
   !!  true if we are using time reversal
   !
@@ -379,8 +379,8 @@
     !
     !  u_{k+q+G_0} carries an additional factor e^{i G_0 v}
     !
-    CALL fractrasl(npw,  igk,  aux5, eigv(:, isym), cone)
-    CALL fractrasl(npwq, igkq, aux4, eigv(:, isym), cone)
+    CALL fractrasl(npw,  igk,  aux5, eigv(:), cone)
+    CALL fractrasl(npwq, igkq, aux4, eigv(:), cone)
     !
     ! ---------------------------------------------------------------------
     ! wave function rotation to generate matrix elements for the star of q
@@ -389,8 +389,8 @@
     ! ps. don't use npwx instead of npw, npwq since the unused elements
     ! may be large and blow up gmapsym (personal experience)
     !
-    igk(1:npw) = gmapsym(igk(1:npw), isym)
-    igkq(1:npwq) = gmapsym(igkq(1:npwq), isym)
+    igk(1:npw) = gmapsym(igk(1:npw))
+    igkq(1:npwq) = gmapsym(igkq(1:npwq))
     !
     ! In dvqpsi_us_only3 we need becp1 and alphap for the rotated wfs.
     ! The other quantities (deeq and qq) do not depend on the wfs, in

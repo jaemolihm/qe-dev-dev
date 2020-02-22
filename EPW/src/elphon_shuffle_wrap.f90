@@ -132,6 +132,8 @@
   !! Index of -q in the star of q (0 if not present)
   INTEGER :: sym_sgq(48)
   !! The symmetries giving the q point iq in the star
+  INTEGER :: s_save(3, 3, 48)
+  !! s matrix before reshuffling for each irr_q
   INTEGER :: i
   !! Index for the star of q points
   INTEGER :: j
@@ -142,6 +144,8 @@
   !! Counter on irreducible q-points
   INTEGER :: isym
   !! Index of symmetry
+  INTEGER :: isym_save
+  !! Index of symmetry s_save, before reshuffling for each iq_irr
   INTEGER :: iq_first
   !! First q in the star of q
   INTEGER :: jsym
@@ -170,6 +174,8 @@
   !! Rotated q-point
   REAL(KIND = DP) :: raq(3)
   !! Rotate q-point in cartesian coordinate
+  REAL(KIND = DP) :: ft_save(3, 48)
+  !! ft array before reshuffling for each iq_irr
   REAL(KIND = DP) :: ft1
   !! Fractional translation x
   REAL(KIND = DP) :: ft2
@@ -425,6 +431,23 @@
       ! if minus_q is true calculate also irotmq and the G associated to Sq=-g+G
       CALL set_giq(xq, s, nsymq, nsym, irotmq, minus_q, gi, gimq)
     ENDDO
+    !
+    ! The s matrix is reshuffled for each iq_irr by copy_sym.
+    ! To avoid recomputing gmapsym for each iq_irr, we save the s matrix before
+    ! reshuffling to s_save and compute gmapsym using s_save.
+    ! Later, we find isym_save s(isym) == s_save(isym_save) and
+    ! ft(isym) == ft_save(isym_save). We pass gmapsym(:, isym_save) and
+    ! eigv(:, isym_save) to elphon_shuffle.
+    !
+    ! Only the definition of gmapsym and eigv is altered, so other parts
+    ! of the code (e.g. rotate_eigenm) need not be changed.
+    !
+    s_save = s
+    ft_save = ft
+    !
+    ! determine the G vector map S(G) -> G
+    CALL gmap_sym(nsym, s, ft, gmapsym, eigv, invs)
+    !
   ENDIF ! epwread .AND. .NOT. epbread
   !
   ! CV: if we read the .fmt files we don't need to read the .epb anymore
@@ -490,7 +513,8 @@
       CALL smallg_q(xq, 0, at, bg, nsym, s, sym, minus_q) ! s is intent(in)
       !
       ! SP: Notice that the function copy_sym reshuffles the s matrix for each irr_q.
-      !     This is why we then need to call gmap_sym for each irr_q [see below].
+      ! JML: This is why we then need to find isym_save such that
+      !      s(isym) == s_save(isym_save) [see below].
       nsymq = copy_sym(nsym, sym)
       !
       ! Recompute the inverses as the order of sym.ops. has changed
@@ -512,15 +536,6 @@
       !
       ! The reason for xq instead of xq0 in the above is because xq is passed to QE through module
       xq0 = xq
-      !
-      !  determine the G vector map S(G) -> G
-      !  SP: The mapping needs to be done for each irr_q because the QE 5 symmetry routine
-      !      reshuffles the s matrix for each irr_q [putting the sym of the small group of q first].
-      !
-      !  [I checked that gmapsym(gmapsym(ig,isym),invs(isym)) = ig]
-      CALL start_clock('gmap_sym') ! JML
-      CALL gmap_sym(nsym, s, ft, gmapsym, eigv, invs)
-      CALL stop_clock('gmap_sym') ! JML
       !
       !  Re-set the variables needed for the pattern representation
       !  and the symmetries of the small group of irr-q
@@ -685,6 +700,22 @@
           ENDIF
         ENDDO
         !
+        ! Find isym_save such that s(:,:,isym) == s_save(:,:,isym_save)
+        ! and use gmapsym(:,isym_save) in elphon_shuffle.
+        isym_save = -1
+        DO jsym = 1, nsym
+          IF ( ALL( s(:, :, isym) == s_save(:, :, jsym) ) &
+              .AND. ALL( ABS(ft(:, isym) - ft_save(:, jsym)) < eps6 ) ) THEN
+            isym_save = jsym
+            EXIT
+          ENDIF
+        ENDDO
+        !
+        ! If a match is not found, raise error.
+        IF (isym_save == -1) THEN
+          CALL errore('elphon_shuffle_wrap ', &
+            'No sym. such that S(isym) = S_save(isym_save) was found', 1)
+        ENDIF
         !
         CALL loadumat(nbndep, nbndsub, nks, nkstot, xq, cu, cuq, lwin, lwinq, exband, w_centers)
         !
@@ -699,7 +730,8 @@
         ! are equal to 5+ digits).
         ! For any volunteers, please write to giustino@civet.berkeley.edu
         !
-        CALL elphon_shuffle(iq_irr, nqc_irr, nqc, gmapsym, eigv, isym, xq0, .FALSE.)
+        CALL elphon_shuffle(iq_irr, nqc_irr, nqc, gmapsym(:, isym_save), &
+                            eigv(:,isym_save), isym, xq0, .FALSE.)
         !
         !  bring epmatq in the mode representation of iq_first,
         !  and then in the cartesian representation of iq
@@ -743,7 +775,8 @@
           !
           xq0 = -xq0
           !
-          CALL elphon_shuffle(iq_irr, nqc_irr, nqc, gmapsym, eigv, isym, xq0, .TRUE.)
+          CALL elphon_shuffle(iq_irr, nqc_irr, nqc, gmapsym(:, isym_save), &
+                              eigv(:, isym_save), isym, xq0, .TRUE.)
           !  bring epmatq in the mode representation of iq_first,
           !  and then in the cartesian representation of iq
           !
@@ -852,6 +885,12 @@
         CLOSE(iuepb)
         WRITE(stdout, '(/5x, "The .epb files have been correctly written"/)')
       ENDIF
+! JML DEBUG
+! write epmatq to binary file
+INQUIRE(iolength=ik) epmatq
+OPEN(999, file='epmatq_npool'//TRIM(int_to_char(npool))//'_node'//TRIM(filelab)//'.bin', form='unformatted', access='direct', recl=ik)
+WRITE(999, rec=1) epmatq
+CLOSE(999)
     ENDIF
   ENDIF
   !
