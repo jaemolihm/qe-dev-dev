@@ -795,6 +795,9 @@
     WRITE(stdout, '(5x, a)') 'Unfolding on the coarse grid'
     CALL print_clock('dvanqq2')
     CALL print_clock('elphon_wrap')
+    CALL print_clock('gmap_sym') ! JML
+    CALL print_clock('epw_init') ! JML
+    CALL print_clock('elphon_shuffle') ! JML
     WRITE(stdout, '(5x)')
     CALL print_clock('ELPHWAN')
     WRITE(stdout, '(5x, a)') 'INITIALIZATION: '

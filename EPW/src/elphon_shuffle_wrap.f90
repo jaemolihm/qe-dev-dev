@@ -518,7 +518,9 @@
       !      reshuffles the s matrix for each irr_q [putting the sym of the small group of q first].
       !
       !  [I checked that gmapsym(gmapsym(ig,isym),invs(isym)) = ig]
+      CALL start_clock('gmap_sym') ! JML
       CALL gmap_sym(nsym, s, ft, gmapsym, eigv, invs)
+      CALL stop_clock('gmap_sym') ! JML
       !
       !  Re-set the variables needed for the pattern representation
       !  and the symmetries of the small group of irr-q
